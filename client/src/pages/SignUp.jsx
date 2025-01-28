@@ -3,11 +3,9 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../Firebase/firebase";
 import { useNavigate } from "react-router-dom";
 import { getUserInfo } from "../hooks/getUserInfo";
-import { PDFDocument } from "pdf-lib"; // For handling PDF content
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI("AIzaSyC7PPJjAnP1MQbRntjSeNunv9TNaDT_-w8"); // Initialize the Google Generative AI API
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+import { useAddInfo } from "../hooks/useAddInfo";
+import CryptoJS from "crypto-js";   
+import axios from "axios"; // For Cloudinary API
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -19,29 +17,9 @@ const SignUp = () => {
     idCard: null,
   });
 
-  const { name, email, userId, isAuth } = getUserInfo();
-
+  const { isAuth } = getUserInfo();
+  const { addUser } = useAddInfo();
   const navigate = useNavigate();
-
-  const createUser = async () => {
-    try {
-      const result = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-      const authInfo = {
-        userId: result.user.uid,
-        name: formData.name,
-        email: result.user.email,
-        isAuth: true,
-      };
-      localStorage.setItem("authInfo", JSON.stringify(authInfo));
-      navigate("/");
-    } catch (error) {
-      console.log(error);
-    }
-  };
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -56,23 +34,52 @@ const SignUp = () => {
     if (file && file.type === "application/pdf") {
       setFormData({ ...formData, idCard: file });
       setError("");
-
-      // Extract text from the uploaded PDF
-      const extractedText = await extractTextFromPDF(file);
-
-      // Send the extracted text to Google's Generative AI model for validation
-      const response = await verifyWithAI(extractedText);
-      console.log(response); // Handle the response as needed
     } else {
       setError("Please upload a valid PDF file.");
     }
   };
 
-  useEffect(() => {
-    if (isAuth) {
+  const createUser = async () => {
+    try {
+      // Create a new user with Firebase
+      const result = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+
+      // Upload the ID Card PDF to Cloudinary
+      const uploadedPDFUrl = await uploadToCloudinary(formData.idCard);
+      const hashedURL = CryptoJS.SHA256(uploadedPDFUrl).toString();
+     
+
+      // Save user data to Firestore
+      const authInfo = {
+        userId: result.user.uid,
+        name: formData.name,
+        email: result.user.email,
+        isAuth: true,
+    
+      };
+
+      addUser({
+        name: formData.name,
+        email: result.user.email,
+        userId: result.user.uid,
+        role: "user",
+        password: formData.password,
+        branch: formData.branch,
+        idCardUrl: uploadedPDFUrl, // Store in Firestore
+      });
+
+      localStorage.setItem("authInfo", JSON.stringify(authInfo));
+      setSuccess("Signup successful!");
       navigate("/");
+    } catch (error) {
+      console.log(error);
+      setError("Error creating account. Please try again.");
     }
-  }, []);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -90,45 +97,34 @@ const SignUp = () => {
     }
 
     setError("");
-    setSuccess("Signup successful!");
+    setSuccess("Uploading ID and creating account...");
     createUser();
   };
 
-  // Function to extract text from the uploaded PDF
-  const extractTextFromPDF = async (pdfFile) => {
-    const fileReader = new FileReader();
-    return new Promise((resolve, reject) => {
-      fileReader.onload = async (event) => {
-        try {
-          const arrayBuffer = event.target.result;
-          const pdfDoc = await PDFDocument.load(arrayBuffer);
-          const text = await pdfDoc.getTextContent();
-          let textContent = "";
-          text.items.forEach((item) => {
-            textContent += item.str + " ";
-          });
-          resolve(textContent);
-        } catch (error) {
-          reject("Error extracting text from PDF: " + error);
-        }
-      };
-      fileReader.readAsArrayBuffer(pdfFile);
-    });
-  };
-
-  // Function to verify the extracted text with Google Generative AI
-  const verifyWithAI = async (extractedText) => {
+  const uploadToCloudinary = async (file) => {
     try {
-      const prompt = `Verify the following ID information: ${extractedText}`;
-      const result = await model.generateContent(prompt);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "ml_default"); // Replace with your Cloudinary upload preset
+      formData.append("cloud_name", "dzlr1rtln"); // Replace with your Cloudinary cloud name
 
-      console.log(result.response.text());
-      return result.response.text(); // This is the verification result from the model
+      const response = await axios.post(
+        "https://api.cloudinary.com/v1_1/dzlr1rtln/upload",
+        formData
+      );
+
+      return response.data.secure_url; // Cloudinary's URL for the uploaded file
     } catch (error) {
-      console.log("Error verifying with AI:", error);
-      return "Error verifying the information.";
+      console.error("Error uploading file to Cloudinary:", error);
+      throw new Error("Failed to upload ID Card. Please try again.");
     }
   };
+
+  useEffect(() => {
+    if (isAuth) {
+      navigate("/");
+    }
+  }, [isAuth, navigate]);
 
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gradient-to-r from-purple-700 to-purple-500">
