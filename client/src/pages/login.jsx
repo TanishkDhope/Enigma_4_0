@@ -22,6 +22,7 @@ const Login = () => {
   const loginUser = async () => {
     try {
       const result = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      console.log(result)
       const authInfo = {
         userId: result.user.uid,
         email: result.user.email,
