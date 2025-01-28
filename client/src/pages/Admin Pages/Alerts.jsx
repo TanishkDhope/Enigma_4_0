@@ -7,12 +7,18 @@ const Alerts = () => {
     ];
 
     return (
-        <div>
-            <h2>Suspicious Activity Alerts</h2>
-            <ul>
+        <div className="p-6 bg-gray-100 rounded-lg shadow-lg w-full max-w-md mx-auto">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">
+                Suspicious Activity Alerts
+            </h2>
+            <ul className="space-y-4">
                 {alertData.map((alert) => (
-                    <li key={alert.id}>
-                        <strong>{alert.message}</strong> <span>({alert.timestamp})</span>
+                    <li
+                        key={alert.id}
+                        className="p-4 bg-white border border-gray-300 rounded-lg flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-200"
+                    >
+                        <p className="font-semibold text-red-600">{alert.message}</p>
+                        <span className="text-sm text-gray-500 mt-2">{alert.timestamp}</span>
                     </li>
                 ))}
             </ul>
