@@ -4,13 +4,13 @@ import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { getUserInfo } from "../hooks/getUserInfo.js";
 
+
 export const Test = () => {
   const [isTabActive, setIsTabActive] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
   const {name, isAuth}=getUserInfo()
 
   useEffect(()=>{
-    console.log(isAuth)
       if (isAuth=="")
       {
         navigate("/signup")

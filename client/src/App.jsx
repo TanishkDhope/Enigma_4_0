@@ -1,20 +1,31 @@
 import { useState } from "react";
-import { Test } from "./pages/test";
-import  Login  from "./pages/login";
-
+import { Routes, Route, BrowserRouter as Router } from "react-router-dom"; // Correct import
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import HomePage from "./pages/HomePage";
+import ExamPage from "./pages/ExamPage";
+import Login from "./pages/login";
 import SignUp from "./pages/SignUp";
 import "./App.css";
-import { Routes, Route } from "react-router-dom";
 
 function App() {
   const [count, setCount] = useState(0);
 
   return (
-    <Routes>
-      <Route path="/" element={<Test />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/login" element={<Login />} />
-    </Routes>
+    <Router>
+      <div>
+        <Navbar />
+        <main className="flex-grow">
+          <Routes> 
+            <Route path="/" element={<HomePage />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/exam/:examId" element={<ExamPage />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </Router>
   );
 }
 
