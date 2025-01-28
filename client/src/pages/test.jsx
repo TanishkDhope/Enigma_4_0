@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { auth } from "../Firebase/firebase.js";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -8,14 +8,25 @@ import { getUserInfo } from "../hooks/getUserInfo.js";
 export const Test = () => {
   const [isTabActive, setIsTabActive] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
-  const {name, isAuth}=getUserInfo()
+  const { name, email, userId, isAuth } = getUserInfo();
 
+<<<<<<< HEAD
   useEffect(()=>{
       if (isAuth=="")
       {
         navigate("/signup")
       }
     },[])
+=======
+  useEffect(() => {
+    console.log(isAuth);
+    if (isAuth == "") {
+      navigate("/signup");
+    }
+  }, []);
+
+  console.log(name);
+>>>>>>> 3f98e8bfaf7898d5e9a915ad695e34050694c3d5
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -29,31 +40,31 @@ export const Test = () => {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // Cleanup the event 
+    // Cleanup the event
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
-  const navigate=useNavigate()
+  const navigate = useNavigate();
 
   const signOutUser = async () => {
     try {
       await signOut(auth);
       localStorage.removeItem("authInfo");
-      navigate("/signup")
-      
+      navigate("/signup");
     } catch (error) {
       console.log(error);
     }
   };
 
-
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold">Welcome {name}</h1>
       <h1 className="text-2xl font-bold">Tab Visibility with Custom Popup</h1>
-      <p className="mt-2">{isTabActive ? "Tab is active." : "Tab is inactive."}</p>
+      <p className="mt-2">
+        {isTabActive ? "Tab is active." : "Tab is inactive."}
+      </p>
 
       {/* Popup */}
       {showPopup && (
@@ -70,7 +81,6 @@ export const Test = () => {
             >
               Close
             </button>
-    
           </div>
         </div>
       )}
