@@ -10,14 +10,6 @@ export const Test = () => {
   const [showPopup, setShowPopup] = useState(false);
   const { name, email, userId, isAuth } = getUserInfo();
 
-<<<<<<< HEAD
-  useEffect(()=>{
-      if (isAuth=="")
-      {
-        navigate("/signup")
-      }
-    },[])
-=======
   useEffect(() => {
     console.log(isAuth);
     if (isAuth == "") {
@@ -26,7 +18,6 @@ export const Test = () => {
   }, []);
 
   console.log(name);
->>>>>>> 3f98e8bfaf7898d5e9a915ad695e34050694c3d5
 
   useEffect(() => {
     const handleVisibilityChange = () => {
