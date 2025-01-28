@@ -1,9 +1,13 @@
-import React, { useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../Firebase/firebase";
 import { useNavigate } from "react-router-dom";
 import { getUserInfo } from "../hooks/getUserInfo";
+import { PDFDocument } from "pdf-lib"; // For handling PDF content
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const genAI = new GoogleGenerativeAI("AIzaSyC7PPJjAnP1MQbRntjSeNunv9TNaDT_-w8"); // Initialize the Google Generative AI API
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -15,26 +19,29 @@ const SignUp = () => {
     idCard: null,
   });
 
-  const {name,email,userId, isAuth}=getUserInfo()
+  const { name, email, userId, isAuth } = getUserInfo();
 
-  const navigate=useNavigate();
+  const navigate = useNavigate();
 
-  const createUser=async()=>{
-    try{
-        const result=await createUserWithEmailAndPassword(auth, formData.email, formData.password)
-        const authInfo={
-            userId: result.user.uid,
-            name: formData.name,
-            email: result.user.email,
-            isAuth: true
-          };
-          localStorage.setItem("authInfo", JSON.stringify(authInfo));
-          navigate("/")
-    }catch(error){
-        console.log(error)
+  const createUser = async () => {
+    try {
+      const result = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      const authInfo = {
+        userId: result.user.uid,
+        name: formData.name,
+        email: result.user.email,
+        isAuth: true,
+      };
+      localStorage.setItem("authInfo", JSON.stringify(authInfo));
+      navigate("/");
+    } catch (error) {
+      console.log(error);
     }
-
-  }
+  };
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -44,32 +51,39 @@ const SignUp = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
       setFormData({ ...formData, idCard: file });
       setError("");
+
+      // Extract text from the uploaded PDF
+      const extractedText = await extractTextFromPDF(file);
+
+      // Send the extracted text to Google's Generative AI model for validation
+      const response = await verifyWithAI(extractedText);
+      console.log(response); // Handle the response as needed
     } else {
       setError("Please upload a valid PDF file.");
     }
   };
 
-  useEffect(()=>{
-    if (isAuth)
-    {
-      navigate("/")
+  useEffect(() => {
+    if (isAuth) {
+      navigate("/");
     }
-  },[])
-
-  const handleLogin=()=>{
-    navigate("/login")
-  }
-
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.email || !formData.password || !formData.branch || !formData.idCard) {
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.password ||
+      !formData.branch ||
+      !formData.idCard
+    ) {
       setError("Please fill in all fields.");
       setSuccess("");
       return;
@@ -77,20 +91,47 @@ const SignUp = () => {
 
     setError("");
     setSuccess("Signup successful!");
-    createUser()
+    createUser();
+  };
 
-    // setFormData({ name: "",
-    //     email: "",
-    //     password: "",
-    //     branch: "",
-    //     role: "user",
-    //     idCard: null,});
+  // Function to extract text from the uploaded PDF
+  const extractTextFromPDF = async (pdfFile) => {
+    const fileReader = new FileReader();
+    return new Promise((resolve, reject) => {
+      fileReader.onload = async (event) => {
+        try {
+          const arrayBuffer = event.target.result;
+          const pdfDoc = await PDFDocument.load(arrayBuffer);
+          const text = await pdfDoc.getTextContent();
+          let textContent = "";
+          text.items.forEach((item) => {
+            textContent += item.str + " ";
+          });
+          resolve(textContent);
+        } catch (error) {
+          reject("Error extracting text from PDF: " + error);
+        }
+      };
+      fileReader.readAsArrayBuffer(pdfFile);
+    });
+  };
 
+  // Function to verify the extracted text with Google Generative AI
+  const verifyWithAI = async (extractedText) => {
+    try {
+      const prompt = `Verify the following ID information: ${extractedText}`;
+      const result = await model.generateContent(prompt);
+
+      console.log(result.response.text());
+      return result.response.text(); // This is the verification result from the model
+    } catch (error) {
+      console.log("Error verifying with AI:", error);
+      return "Error verifying the information.";
+    }
   };
 
   return (
-      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-r from-purple-700 to-purple-500">
-
+    <div className="w-full h-screen flex items-center justify-center bg-gradient-to-r from-purple-700 to-purple-500">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <h1 className="text-3xl font-bold text-black mb-6 text-center">
           Signup
@@ -98,10 +139,11 @@ const SignUp = () => {
         {error && <p className="text-red-600 mb-4">{error}</p>}
         {success && <p className="text-green-600 mb-4">{success}</p>}
         <form onSubmit={handleSubmit}>
+          {/* Form fields for name, email, password, branch */}
           <div className="mb-4">
             <label
               htmlFor="name"
-              className="block text-md   font-medium text-black mb-1"
+              className="block text-md font-medium text-black mb-1"
             >
               Name
             </label>
@@ -193,12 +235,6 @@ const SignUp = () => {
             className="w-full bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200"
           >
             Signup
-          </button>
-          <button
-          onClick={handleLogin}
-            className="w-full bg-purple-500 mt-6 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200"
-          >
-            LogIn
           </button>
         </form>
       </div>
