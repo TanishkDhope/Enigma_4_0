@@ -61,6 +61,9 @@ const SignUp = () => {
     }
   },[])
 
+  const handleLogin=()=>{
+    navigate("/login")
+  }
 
 
   const handleSubmit = (e) => {
@@ -192,7 +195,7 @@ const SignUp = () => {
             Signup
           </button>
           <button
-          onClick={navigate("/login")}
+          onClick={handleLogin}
             className="w-full bg-purple-500 mt-6 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200"
           >
             LogIn
