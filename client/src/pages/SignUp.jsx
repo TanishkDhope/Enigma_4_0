@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState} from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../Firebase/firebase";
 import { useNavigate } from "react-router-dom";
+import { getUserInfo } from "../hooks/getUserInfo";
+
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -13,12 +15,21 @@ const SignUp = () => {
     idCard: null,
   });
 
+  const {name,email,userId, isAuth}=getUserInfo()
+
   const navigate=useNavigate();
 
   const createUser=async()=>{
     try{
-        await createUserWithEmailAndPassword(auth, formData.email, formData.password)
-        navigate("/")
+        const result=await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+        const authInfo={
+            userId: result.user.uid,
+            name: formData.name,
+            email: result.user.email,
+            isAuth: true
+          };
+          localStorage.setItem("authInfo", JSON.stringify(authInfo));
+          navigate("/")
     }catch(error){
         console.log(error)
     }
@@ -43,6 +54,14 @@ const SignUp = () => {
     }
   };
 
+  useEffect(()=>{
+    if (isAuth)
+    {
+      navigate("/")
+    }
+  },[])
+
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -64,7 +83,6 @@ const SignUp = () => {
     //     role: "user",
     //     idCard: null,});
 
-    console.log("Form Data Submitted:", formData);
   };
 
   return (
@@ -172,6 +190,12 @@ const SignUp = () => {
             className="w-full bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200"
           >
             Signup
+          </button>
+          <button
+          onClick={navigate("/login")}
+            className="w-full bg-purple-500 mt-6 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200"
+          >
+            LogIn
           </button>
         </form>
       </div>

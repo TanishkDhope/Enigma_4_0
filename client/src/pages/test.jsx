@@ -1,31 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useContext } from "react";
+import { auth } from "../Firebase/firebase.js";
+import { signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import { getUserInfo } from "../hooks/getUserInfo.js";
 
 export const Test = () => {
   const [isTabActive, setIsTabActive] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
+  const {name, isAuth}=getUserInfo()
+
+  useEffect(()=>{
+    console.log(isAuth)
+      if (isAuth=="")
+      {
+        navigate("/signup")
+      }
+    },[])
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === "visible";
       setIsTabActive(isVisible);
 
-      // Show popup when the tab becomes inactive
       if (!isVisible) {
         setShowPopup(true);
       }
     };
 
-    // Add event listener
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // Cleanup the event listener
+    // Cleanup the event 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
+  const navigate=useNavigate()
+
+  const signOutUser = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem("authInfo");
+      navigate("/signup")
+      
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+
   return (
     <div className="p-4">
+      <h1 className="text-2xl font-bold">Welcome {name}</h1>
       <h1 className="text-2xl font-bold">Tab Visibility with Custom Popup</h1>
       <p className="mt-2">{isTabActive ? "Tab is active." : "Tab is inactive."}</p>
 
@@ -44,9 +70,11 @@ export const Test = () => {
             >
               Close
             </button>
+    
           </div>
         </div>
       )}
+      <button onClick={signOutUser}>SignOut</button>
     </div>
   );
 };
