@@ -10,13 +10,10 @@ export const Test = () => {
   const { name, email, userId, isAuth } = getUserInfo();
 
   useEffect(() => {
-    console.log(isAuth);
     if (isAuth == "") {
       navigate("/signup");
     }
   }, []);
-
-  console.log(name);
 
   useEffect(() => {
     const handleVisibilityChange = () => {

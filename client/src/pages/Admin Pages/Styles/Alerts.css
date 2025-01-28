@@ -1,0 +1,8 @@
+.alerts {
+    padding: 2rem;
+    margin-left: 260px; /* To accommodate the sidebar */
+}
+
+.alerts h2 {
+    color: #343a40;
+}
