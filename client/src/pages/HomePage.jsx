@@ -2,29 +2,55 @@ import React, { useEffect } from "react";
 import { gsap } from "gsap";
 import { useNavigate } from "react-router-dom"; // For navigation
 import { getUserInfo } from "../hooks/getUserInfo";
+import FaceDetectionComponent from "./face"; // Importing FaceDetectionComponent
+import { signOut } from "firebase/auth";
+import { auth } from "../Firebase/firebase";
 
 const HomePage = () => {
   const navigate = useNavigate(); // React Router hook for navigation
-  const {isAuth}=getUserInfo()
+  const { isAuth } = getUserInfo();
 
-   const signOutUser = async () => {
-      try {
-        await signOut(auth);
-        localStorage.removeItem("authInfo");  
-        navigate("/signup")
-        
-      } catch (error) {
-        console.log(error);
-      }
-    };
+  const signOutUser = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem("authInfo");
+      navigate("/signup");
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const exams = [
-    { id: "national-scholarship", name: "National Scholarship Exam", date: "March 15, 2025" },
-    { id: "engineering-entrance", name: "Engineering Entrance Exam", date: "April 10, 2025" },
-    { id: "medical-entrance", name: "Medical Entrance Exam", date: "May 5, 2025" },
-    { id: "management-aptitude", name: "Management Aptitude Test", date: "June 20, 2025" },
-    { id: "joint-entrance", name: "Joint Entrance Examination", date: "July 22, 2025" },
-    { id: "thadomal-entrance", name: "Thadomal Entrance Exam", date: "March 20, 2025" },
+    {
+      id: "national-scholarship",
+      name: "National Scholarship Exam",
+      date: "March 15, 2025",
+    },
+    {
+      id: "engineering-entrance",
+      name: "Engineering Entrance Exam",
+      date: "April 10, 2025",
+    },
+    {
+      id: "medical-entrance",
+      name: "Medical Entrance Exam",
+      date: "May 5, 2025",
+    },
+    {
+      id: "management-aptitude",
+      name: "Management Aptitude Test",
+      date: "June 20, 2025",
+    },
+    {
+      id: "joint-entrance",
+      name: "Joint Entrance Examination",
+      date: "July 22, 2025",
+    },
+    {
+      id: "thadomal-entrance",
+      name: "Thadomal Entrance Exam",
+      date: "March 20, 2025",
+    },
   ];
 
   useEffect(() => {
@@ -43,23 +69,20 @@ const HomePage = () => {
     );
   }, []);
 
-    useEffect(()=>{
-        if (isAuth=="")
-        {
-          navigate("/signup")
-        }
-      },[])
+  useEffect(() => {
+    if (isAuth == "") {
+      navigate("/signup");
+    }
+  }, []);
 
   const handleExamClick = (id) => {
     navigate(`/exam/${id}`); // Navigate to the exam-specific page
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 relative">
       <section id="home" className="text-center my-10 homepage-title">
-        <h1 className="text-4xl font-bold text-blue-600">
-          Welcome to ExamPro
-        </h1>
+        <h1 className="text-4xl font-bold text-blue-600">Welcome to ExamPro</h1>
         <p className="text-gray-600 mt-2">
           Your trusted platform for online exams with fairness and privacy.
         </p>
@@ -84,15 +107,15 @@ const HomePage = () => {
       </section>
 
       <section id="about" className="my-10">
-        <h2 className="text-3xl font-bold text-gray-800 mb-4">
-          About Us
-        </h2>
+        <h2 className="text-3xl font-bold text-gray-800 mb-4">About Us</h2>
         <p className="text-gray-600">
           At ExamPro, we use cutting-edge AI technology to ensure a fair and
           transparent examination process while prioritizing the privacy and
           trust of all participants.
         </p>
       </section>
+
+      {/* FaceDetectionComponent at the bottom-left corner */}
     </div>
   );
 };

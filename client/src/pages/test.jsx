@@ -4,18 +4,16 @@ import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { getUserInfo } from "../hooks/getUserInfo.js";
 
-
 export const Test = () => {
   const [isTabActive, setIsTabActive] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
   const { name, email, userId, isAuth } = getUserInfo();
 
-  useEffect(()=>{
-      if (isAuth=="")
-      {
-        navigate("/signup")
-      }
-    },[])
+  useEffect(() => {
+    if (isAuth == "") {
+      navigate("/signup");
+    }
+  }, []);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
