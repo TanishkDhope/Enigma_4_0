@@ -6,6 +6,26 @@ import FaceDetectionComponent from "./face";
 const ExamPage = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
+  const [isTabActive, setIsTabActive] = useState(true);
+  const [showPopup, setShowPopup] = useState(false);
+
+  useEffect(() => {
+      const handleVisibilityChange = () => {
+        const isVisible = document.visibilityState === "visible";
+        setIsTabActive(isVisible);
+  
+        if (!isVisible) {
+          setShowPopup(true);
+        }
+      };
+  
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+  
+      // Cleanup the event
+      return () => {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
+    }, []);
 
   const questions = [
     {
@@ -50,32 +70,32 @@ const ExamPage = () => {
     //   { opacity: 1, y: 0, duration: 1, ease: "power3.out" }
     // );
 
-    // Timer countdown
+    
     const interval = setInterval(() => {
       setTimer((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
-    // If the timer reaches zero, show the score
+    
     if (timer === 0) {
       setShowScore(true);
     }
 
-    return () => clearInterval(interval); // Cleanup interval on component unmount
+    return () => clearInterval(interval); 
   }, [timer]);
 
   const handleNext = () => {
     if (selectedOption !== null) {
       if (selectedOption === questions[currentQuestion].answer) {
-        setScore(score + 1); // Increment score if the answer is correct
+        setScore(score + 1); 
       }
       setAttemptedQuestions((prev) => new Set(prev.add(currentQuestion)));
     }
-    setSelectedOption(null); // Reset selected option for the next question
+    setSelectedOption(null); 
     const nextQuestion = currentQuestion + 1;
     if (nextQuestion < questions.length) {
       setCurrentQuestion(nextQuestion);
     } else {
-      setShowScore(true); // End of the exam
+      setShowScore(true); 
     }
   };
 
@@ -209,6 +229,23 @@ const ExamPage = () => {
       </div>
       <div className="fixed bottom-4 left-4 w-40 h-40 bg-white border rounded-lg shadow-lg">
         <FaceDetectionComponent />
+        {showPopup && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={() => setShowPopup(false)}
+        >
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-black">You left the tab!</h2>
+            <p className="text-black">Come back to the tab for more updates.</p>
+            <button
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              onClick={() => setShowPopup(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

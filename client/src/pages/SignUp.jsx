@@ -3,11 +3,13 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../Firebase/firebase";
 import { useNavigate } from "react-router-dom";
 import { getUserInfo } from "../hooks/getUserInfo";
-import { PDFDocument } from "pdf-lib"; // For handling PDF content
+import { PDFDocument } from "pdf-lib"; 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+//import Particle from "./Particle";
 
-const genAI = new GoogleGenerativeAI("AIzaSyC7PPJjAnP1MQbRntjSeNunv9TNaDT_-w8"); // Initialize the Google Generative AI API
+const genAI = new GoogleGenerativeAI("AIzaSyC7PPJjAnP1MQbRntjSeNunv9TNaDT_-w8"); 
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -22,6 +24,11 @@ const SignUp = () => {
   const { name, email, userId, isAuth } = getUserInfo();
 
   const navigate = useNavigate();
+
+  const onHandleLogin = () => {
+    navigate("/login");
+  };
+  
 
   const createUser = async () => {
     try {
@@ -57,12 +64,10 @@ const SignUp = () => {
       setFormData({ ...formData, idCard: file });
       setError("");
 
-      // Extract text from the uploaded PDF
       const extractedText = await extractTextFromPDF(file);
 
-      // Send the extracted text to Google's Generative AI model for validation
       const response = await verifyWithAI(extractedText);
-      console.log(response); // Handle the response as needed
+      console.log(response); 
     } else {
       setError("Please upload a valid PDF file.");
     }
@@ -94,7 +99,6 @@ const SignUp = () => {
     createUser();
   };
 
-  // Function to extract text from the uploaded PDF
   const extractTextFromPDF = async (pdfFile) => {
     const fileReader = new FileReader();
     return new Promise((resolve, reject) => {
@@ -116,14 +120,14 @@ const SignUp = () => {
     });
   };
 
-  // Function to verify the extracted text with Google Generative AI
+
   const verifyWithAI = async (extractedText) => {
     try {
       const prompt = `Verify the following ID information: ${extractedText}`;
       const result = await model.generateContent(prompt);
 
       console.log(result.response.text());
-      return result.response.text(); // This is the verification result from the model
+      return result.response.text(); 
     } catch (error) {
       console.log("Error verifying with AI:", error);
       return "Error verifying the information.";
@@ -132,6 +136,7 @@ const SignUp = () => {
 
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gradient-to-r from-purple-700 to-purple-500">
+      {/* <Particle /> */}
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <h1 className="text-3xl font-bold text-black mb-6 text-center">
           Signup
@@ -235,6 +240,12 @@ const SignUp = () => {
             className="w-full bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200"
           >
             Signup
+          </button>
+          <button
+            type="submit"
+            className="w-full bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200 mt-4" onClick={onHandleLogin}
+          >
+            Login
           </button>
         </form>
       </div>

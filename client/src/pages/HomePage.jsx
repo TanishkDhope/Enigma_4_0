@@ -5,6 +5,7 @@ import { getUserInfo } from "../hooks/getUserInfo";
 import FaceDetectionComponent from "./face"; // Importing FaceDetectionComponent
 import { signOut } from "firebase/auth";
 import { auth } from "../Firebase/firebase";
+import Particle from "./Particle";
 
 const HomePage = () => {
   const navigate = useNavigate(); // React Router hook for navigation
@@ -54,14 +55,12 @@ const HomePage = () => {
   ];
 
   useEffect(() => {
-    // Fade in and slide up for title and description
     gsap.fromTo(
       ".homepage-title",
       { opacity: 0, y: 50 },
       { opacity: 1, y: 0, duration: 1, ease: "power3.out" }
     );
 
-    // Slide in the exams section
     gsap.fromTo(
       ".exams-section",
       { opacity: 0, x: -200 },
@@ -76,11 +75,12 @@ const HomePage = () => {
   }, []);
 
   const handleExamClick = (id) => {
-    navigate(`/exam/${id}`); // Navigate to the exam-specific page
+    navigate(`/exam/${id}`); 
   };
 
   return (
     <div className="container mx-auto p-4 relative">
+      <Particle />
       <section id="home" className="text-center my-10 homepage-title">
         <h1 className="text-4xl font-bold text-blue-600">Welcome to ExamPro</h1>
         <p className="text-gray-600 mt-2">
@@ -97,7 +97,7 @@ const HomePage = () => {
             <div
               key={exam.id}
               className="p-4 border rounded-lg shadow-lg exam-card hover:shadow-2xl transition cursor-pointer"
-              onClick={() => handleExamClick(exam.id)} // Navigate on click
+              onClick={() => handleExamClick(exam.id)} 
             >
               <h3 className="text-xl font-semibold">{exam.name}</h3>
               <p className="text-gray-600">Date: {exam.date}</p>
