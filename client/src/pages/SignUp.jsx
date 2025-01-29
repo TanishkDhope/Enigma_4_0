@@ -3,13 +3,13 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../Firebase/firebase";
 import { useNavigate } from "react-router-dom";
 import { getUserInfo } from "../hooks/getUserInfo";
-import { PDFDocument } from "pdf-lib"; 
+import { PDFDocument } from "pdf-lib"; // For handling PDF content
 import { GoogleGenerativeAI } from "@google/generative-ai";
-//import Particle from "./Particle";
+import CryptoJS from "crypto-js"; // Ensure to install this package
+import { useAddInfo } from "../hooks/useAddInfo"; // Importing addInfo hook
 
-const genAI = new GoogleGenerativeAI("AIzaSyC7PPJjAnP1MQbRntjSeNunv9TNaDT_-w8"); 
+const genAI = new GoogleGenerativeAI("AIzaSyC7PPJjAnP1MQbRntjSeNunv9TNaDT_-w8");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -21,35 +21,9 @@ const SignUp = () => {
     idCard: null,
   });
 
-  const { name, email, userId, isAuth } = getUserInfo();
-
+  const { isAuth } = getUserInfo();
+  const { addUser } = useAddInfo();
   const navigate = useNavigate();
-
-  const onHandleLogin = () => {
-    navigate("/login");
-  };
-  
-
-  const createUser = async () => {
-    try {
-      const result = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-      const authInfo = {
-        userId: result.user.uid,
-        name: formData.name,
-        email: result.user.email,
-        isAuth: true,
-      };
-      localStorage.setItem("authInfo", JSON.stringify(authInfo));
-      navigate("/");
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -64,20 +38,104 @@ const SignUp = () => {
       setFormData({ ...formData, idCard: file });
       setError("");
 
-      const extractedText = await extractTextFromPDF(file);
-
-      const response = await verifyWithAI(extractedText);
-      console.log(response); 
+      try {
+        const extractedText = await extractTextFromPDF(file);
+        const response = await verifyWithAI(extractedText);
+        console.log("AI Validation Response:", response);
+      } catch (err) {
+        setError("Error processing the PDF. Please try again.");
+      }
     } else {
       setError("Please upload a valid PDF file.");
     }
   };
 
-  useEffect(() => {
-    if (isAuth) {
-      navigate("/");
+  const extractTextFromPDF = async (pdfFile) => {
+    const fileReader = new FileReader();
+    return new Promise((resolve, reject) => {
+      fileReader.onload = async (event) => {
+        try {
+          const arrayBuffer = event.target.result;
+          const pdfDoc = await PDFDocument.load(arrayBuffer);
+          const pages = pdfDoc.getPages();
+          let textContent = "";
+          for (const page of pages) {
+            textContent += page.getTextContent();
+          }
+          resolve(textContent);
+        } catch (error) {
+          reject("Error extracting text from PDF: " + error);
+        }
+      };
+      fileReader.readAsArrayBuffer(pdfFile);
+    });
+  };
+
+  const verifyWithAI = async (extractedText) => {
+    try {
+      const prompt = `Verify the following ID information: ${extractedText}`;
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (error) {
+      console.error("Error verifying with AI:", error);
+      throw new Error("AI verification failed.");
     }
-  }, []);
+  };
+
+  const uploadToCloudinary = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "your_upload_preset");
+    try {
+      const response = await fetch("https://api.cloudinary.com/v1_1/your_cloud_name/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      return data.secure_url;
+    } catch (error) {
+      console.error("Error uploading file to Cloudinary:", error);
+      throw new Error("Failed to upload ID Card. Please try again.");
+    }
+  };
+
+  const createUser = async () => {
+    try {
+      const result = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+
+      const uploadedPDFUrl = await uploadToCloudinary(formData.idCard);
+      const hashedURL = CryptoJS.SHA256(uploadedPDFUrl).toString();
+
+      const authInfo = {
+        userId: result.user.uid,
+        name: formData.name,
+        email: result.user.email,
+        isAuth: true,
+      };
+
+      addUser({
+        name: formData.name,
+        email: result.user.email,
+        userId: result.user.uid,
+        role: formData.role,
+        password: formData.password,
+        branch: formData.branch,
+        idCardUrl: uploadedPDFUrl, // Store in Firestore
+        idCardHash: hashedURL, // For security validation
+      });
+
+      localStorage.setItem("authInfo", JSON.stringify(authInfo));
+      setSuccess("Signup successful!");
+      navigate("/");
+    } catch (error) {
+      console.error("Error creating account:", error);
+      setError("Error creating account. Please try again.");
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -95,61 +153,25 @@ const SignUp = () => {
     }
 
     setError("");
-    setSuccess("Signup successful!");
+    setSuccess("Uploading ID and creating account...");
     createUser();
   };
 
-  const extractTextFromPDF = async (pdfFile) => {
-    const fileReader = new FileReader();
-    return new Promise((resolve, reject) => {
-      fileReader.onload = async (event) => {
-        try {
-          const arrayBuffer = event.target.result;
-          const pdfDoc = await PDFDocument.load(arrayBuffer);
-          const text = await pdfDoc.getTextContent();
-          let textContent = "";
-          text.items.forEach((item) => {
-            textContent += item.str + " ";
-          });
-          resolve(textContent);
-        } catch (error) {
-          reject("Error extracting text from PDF: " + error);
-        }
-      };
-      fileReader.readAsArrayBuffer(pdfFile);
-    });
-  };
-
-
-  const verifyWithAI = async (extractedText) => {
-    try {
-      const prompt = `Verify the following ID information: ${extractedText}`;
-      const result = await model.generateContent(prompt);
-
-      console.log(result.response.text());
-      return result.response.text(); 
-    } catch (error) {
-      console.log("Error verifying with AI:", error);
-      return "Error verifying the information.";
+  useEffect(() => {
+    if (isAuth) {
+      navigate("/");
     }
-  };
+  }, [isAuth, navigate]);
 
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gradient-to-r from-purple-700 to-purple-500">
-      {/* <Particle /> */}
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-3xl font-bold text-black mb-6 text-center">
-          Signup
-        </h1>
+        <h1 className="text-3xl font-bold text-black mb-6 text-center">Signup</h1>
         {error && <p className="text-red-600 mb-4">{error}</p>}
         {success && <p className="text-green-600 mb-4">{success}</p>}
         <form onSubmit={handleSubmit}>
-          {/* Form fields for name, email, password, branch */}
           <div className="mb-4">
-            <label
-              htmlFor="name"
-              className="block text-md font-medium text-black mb-1"
-            >
+            <label htmlFor="name" className="block text-md font-medium text-black mb-1">
               Name
             </label>
             <input
@@ -163,10 +185,7 @@ const SignUp = () => {
             />
           </div>
           <div className="mb-4">
-            <label
-              htmlFor="email"
-              className="block text-md font-medium text-black mb-1"
-            >
+            <label htmlFor="email" className="block text-md font-medium text-black mb-1">
               Email
             </label>
             <input
@@ -180,10 +199,7 @@ const SignUp = () => {
             />
           </div>
           <div className="mb-4">
-            <label
-              htmlFor="password"
-              className="block text-md font-medium text-black mb-1"
-            >
+            <label htmlFor="password" className="block text-md font-medium text-black mb-1">
               Password
             </label>
             <input
@@ -197,10 +213,7 @@ const SignUp = () => {
             />
           </div>
           <div className="mb-4">
-            <label
-              htmlFor="branch"
-              className="block text-md font-medium text-black mb-1"
-            >
+            <label htmlFor="branch" className="block text-md font-medium text-black mb-1">
               Branch
             </label>
             <select
@@ -220,10 +233,7 @@ const SignUp = () => {
             </select>
           </div>
           <div className="mb-4">
-            <label
-              htmlFor="idCard"
-              className="block text-md font-medium text-black mb-1"
-            >
+            <label htmlFor="idCard" className="block text-md font-medium text-black mb-1">
               Upload ID Card (PDF only)
             </label>
             <input
@@ -240,12 +250,6 @@ const SignUp = () => {
             className="w-full bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200"
           >
             Signup
-          </button>
-          <button
-            type="submit"
-            className="w-full bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600 transition duration-200 mt-4" onClick={onHandleLogin}
-          >
-            Login
           </button>
         </form>
       </div>
