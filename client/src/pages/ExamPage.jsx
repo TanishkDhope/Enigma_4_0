@@ -1,32 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import FaceDetectionComponent from "./face";
+import AudioTracking from "../components/AudioTracking";
 
 const ExamPage = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
-  const [isTabActive, setIsTabActive] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-      const handleVisibilityChange = () => {
-        const isVisible = document.visibilityState === "visible";
-        setIsTabActive(isVisible);
-  
-        if (!isVisible) {
-          setShowPopup(true);
-        }
-      };
-  
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-  
-      // Cleanup the event
-      return () => {
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-      };
-    }, []);
-
+  // Questions data
   const questions = [
     {
       question: "What is the capital of France?",
@@ -55,57 +39,99 @@ const ExamPage = () => {
     },
   ];
 
+  // State management
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
-  const [timer, setTimer] = useState(300); // 5 minutes in seconds
+  const [timer, setTimer] = useState(300);
   const [selectedOption, setSelectedOption] = useState(null);
   const [showScore, setShowScore] = useState(false);
   const [attemptedQuestions, setAttemptedQuestions] = useState(new Set());
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
+  // Tab visibility handling
   useEffect(() => {
-    // GSAP animations for the question container
-    // gsap.fromTo(
-    //   ".question-container",
-    //   { opacity: 0, y: 20 },
-    //   { opacity: 1, y: 0, duration: 1, ease: "power3.out" }
-    // );
+    const handleVisibilityChange = () => {
+      const isVisible = document.visibilityState === "visible";
+      setShowPopup(!isVisible);
+    };
 
-    
-    const interval = setInterval(() => {
-      setTimer((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
-    
-    if (timer === 0) {
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Timer management
+  useEffect(() => {
+    let interval;
+    if (timer > 0 && !showScore) {
+      interval = setInterval(() => setTimer(prev => prev - 1), 1000);
+    } else if (timer === 0) {
       setShowScore(true);
+      clearInterval(interval);
     }
+    return () => clearInterval(interval);
+  }, [timer, showScore]);
 
-    return () => clearInterval(interval); 
-  }, [timer]);
-
-  const handleNext = () => {
-    if (selectedOption !== null) {
-      if (selectedOption === questions[currentQuestion].answer) {
-        setScore(score + 1); 
+  // GSAP animations
+  useEffect(() => {
+    gsap.fromTo(".question-container", 
+      { opacity: 0, y: 20 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.5,
+        ease: "power3.out",
+        onStart: () => setIsTransitioning(true),
+        onComplete: () => setIsTransitioning(false),
       }
-      setAttemptedQuestions((prev) => new Set(prev.add(currentQuestion)));
-    }
-    setSelectedOption(null); 
-    const nextQuestion = currentQuestion + 1;
-    if (nextQuestion < questions.length) {
-      setCurrentQuestion(nextQuestion);
-    } else {
-      setShowScore(true); 
-    }
-  };
+    );
+  }, [currentQuestion]);
 
-  const handlePrevious = () => {
-    const prevQuestion = currentQuestion - 1;
-    if (prevQuestion >= 0) {
-      setCurrentQuestion(prevQuestion);
-    }
-  };
+  // Navigation handlers
+  const handleQuestionClick = useCallback((index) => {
+    setCurrentQuestion(index);
+    setSelectedOption(null);
+  }, []);
 
+  const handleNext = useCallback(() => {
+    if (!selectedOption) return;
+
+    setIsTransitioning(true);
+    setTimeout(() => {
+      if (selectedOption === questions[currentQuestion].answer) {
+        setScore(prev => prev + 1);
+      }
+      setAttemptedQuestions(prev => new Set([...prev, currentQuestion]));
+
+      const nextQuestion = currentQuestion + 1;
+      if (nextQuestion < questions.length) {
+        setCurrentQuestion(nextQuestion);
+      } else {
+        setShowScore(true);
+      }
+      setSelectedOption(null);
+    }, 300);
+  }, [selectedOption, currentQuestion]);
+
+  const handlePrevious = useCallback(() => {
+    if (currentQuestion === 0) return;
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentQuestion(prev => prev - 1);
+      setSelectedOption(null);
+    }, 300);
+  }, [currentQuestion]);
+
+  // Restart exam
   const handleRestart = () => {
     setCurrentQuestion(0);
     setScore(0);
@@ -115,138 +141,187 @@ const ExamPage = () => {
     setAttemptedQuestions(new Set());
   };
 
-  const formatTime = (time) => {
+  // Time formatter
+  const formatTime = useCallback((time) => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
-    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-  };
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }, []);
 
   return (
-    <div className="min-h-screen relative bg-gradient-to-br from-blue-600 to-purple-700 text-white flex flex-col md:flex-row p-6">
-      {/* Side Panel */}
-      <div className="w-full md:w-1/4 bg-white text-gray-900 rounded-lg shadow-xl p-6 mr-6 mb-6 md:mb-0 flex flex-col items-start">
-        <h2 className="text-xl font-semibold mb-4 text-blue-600">Questions</h2>
-        <div className="space-y-4 w-full">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 text-white flex flex-col md:flex-row p-8 gap-6 relative">
+      {/* Sidebar */}
+      <div className="w-full md:w-1/4 bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl p-6 flex flex-col">
+        <h2 className="text-2xl font-bold text-blue-600 mb-4">Questions</h2>
+        <div className="space-y-3 flex-1 overflow-y-auto">
           {questions.map((_, index) => (
             <div
               key={index}
-              className={`p-3 rounded-lg cursor-pointer flex justify-between items-center transition-all ${
-                attemptedQuestions.has(index)
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-200 text-gray-900 hover:bg-blue-300"
-              }`}
-              onClick={() => setCurrentQuestion(index)}
+              onClick={() => handleQuestionClick(index)}
+              className={`p-3 rounded-lg flex items-center justify-between cursor-pointer transition-all
+                ${attemptedQuestions.has(index)
+                  ? "bg-green-500/90 text-white"
+                  : "bg-gray-100 hover:bg-blue-100"}
+                ${currentQuestion === index ? "ring-2 ring-blue-500" : ""}`}
             >
-              <span>Q{index + 1}</span>
-              <span
-                className={`w-3 h-3 rounded-full ${
-                  attemptedQuestions.has(index) ? "bg-white" : "bg-gray-500"
-                }`}
-              />
+              <span className="font-medium">Question {index + 1}</span>
+              <div className={`w-2 h-2 rounded-full ${attemptedQuestions.has(index) ? "bg-white" : "bg-gray-400"}`} />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="w-full md:w-3/4 bg-white text-gray-900 rounded-lg shadow-xl p-8 flex flex-col items-center justify-between">
-        {showScore ? (
-          <div className="text-center">
-            <h2 className="text-4xl font-bold mb-6 text-blue-600">
-              Exam Completed
-            </h2>
-            <p className="text-2xl">
-              Your score is: <span className="font-bold">{score}</span> out of{" "}
-              {questions.length}
+      {/* Main Content Area */}
+      <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl p-8 flex flex-col">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">
+              {examId.replace(/-/g, " ").toUpperCase()}
+            </h1>
+            <p className="text-lg text-gray-600 mt-1">
+              Total Questions: {questions.length}
             </p>
-            <div className="mt-8">
+          </div>
+          <div className="bg-blue-100 px-6 py-3 rounded-lg shadow-sm">
+            <span className="text-2xl font-bold text-blue-600">
+              {formatTime(timer)}
+            </span>
+          </div>
+        </div>
+
+        {/* Question Area */}
+        {showScore ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <h2 className="text-4xl font-bold text-blue-600 mb-4">
+              Exam Completed!
+            </h2>
+            <p className="text-2xl text-gray-700 mb-8">
+              Score: {score}/{questions.length}
+            </p>
+            <div className="flex gap-4">
               <button
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-500 transition"
                 onClick={handleRestart}
+                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105"
               >
                 Restart Exam
               </button>
               <button
-                className="ml-4 bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-500 transition"
                 onClick={() => navigate("/")}
+                className="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-transform transform hover:scale-105"
               >
-                Back to Home
+                Return Home
               </button>
             </div>
           </div>
         ) : (
-          <>
-            <div className="flex-col justify-between items-center mb-2 w-full">
-              <div className="flex justify-between items-center w-full mb-2">
-                <h2 className="text-3xl font-bold text-gray-800">
-                  Exam: {examId.replace("-", " ")}
-                </h2>
-                <p className="text-lg font-semibold bg-blue-100 text-blue-800 px-4 py-2 rounded-lg">
-                  Time Left: {formatTime(timer)}
-                </p>
+          <div className="question-container flex-1 flex flex-col">
+            {/* Question Content */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="bg-blue-600 text-white px-4 py-1 rounded-full">
+                  Question {currentQuestion + 1}
+                </span>
+                <div className="h-1 flex-1 bg-gray-200 rounded-full">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                    style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+                  />
+                </div>
               </div>
-              <div className="question-container w-full mb-2 mt-24">
-                <h3 className="text-2xl font-semibold mb-2 text-gray-800">
-                  Question {currentQuestion + 1} of {questions.length}
-                </h3>
-                <p className="text-xl mb-4 text-gray-700">
-                  {questions[currentQuestion].question}
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full mb-4">
-                  {questions[currentQuestion].options.map((option, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedOption(option)}
-                      className={`px-6 py-4 rounded-lg shadow-lg text-lg transition-all w-full ${
-                        selectedOption === option
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-900 hover:bg-blue-500 hover:text-white"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt w-full flex justify-between">
-                  <button
-                    onClick={handlePrevious}
-                    className="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-500 transition"
-                    disabled={currentQuestion === 0}
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-500 transition"
-                  >
-                    Next
-                  </button>
-                </div>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-6">
+                {questions[currentQuestion].question}
+              </h3>
+            </div>
+
+            {/* Options Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-1">
+              {questions[currentQuestion].options.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => !isTransitioning && setSelectedOption(option)}
+                  className={`p-6 text-left rounded-xl transition-all
+                    ${selectedOption === option
+                      ? "bg-blue-600 text-white ring-4 ring-blue-300"
+                      : "bg-gray-100 hover:bg-blue-50 text-gray-800"}
+                    ${isTransitioning ? "opacity-50 cursor-not-allowed" : ""}`}
+                  disabled={isTransitioning}
+                >
+                  <span className="font-medium">{String.fromCharCode(65 + index)}.</span> {option}
+                </button>
+              ))}
+            </div>
+
+            {/* Navigation Controls */}
+            <div className="flex justify-between items-center border-t pt-6">
+              <button
+                onClick={handlePrevious}
+                className="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentQuestion === 0 || isTransitioning}
+              >
+                ← Previous
+              </button>
+              <div className="flex items-center gap-4">
+                <span className="text-gray-600">
+                  {currentQuestion + 1} of {questions.length}
+                </span>
+                <button
+                  onClick={handleNext}
+                  className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!selectedOption || isTransitioning}
+                >
+                  {currentQuestion === questions.length - 1 ? "Finish Exam" : "Next →"}
+                </button>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
-      <div className="fixed bottom-4 left-4 w-40 h-40 bg-white border rounded-lg shadow-lg">
-        <FaceDetectionComponent />
-        {showPopup && (
-        <div
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
-          onClick={() => setShowPopup(false)}
-        >
-          <div className="bg-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-black">You left the tab!</h2>
-            <p className="text-black">Come back to the tab for more updates.</p>
+
+      {/* Media Monitoring Section */}
+      {!isMobile && (
+        <div className="fixed bottom-8 right-8 flex flex-col gap-4 z-10">
+          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-xl border-2 border-blue-200">
+            <div className="w-48 h-36 rounded-md overflow-hidden bg-gray-100">
+              <FaceDetectionComponent />
+            </div>
+            <p className="text-center text-sm text-gray-600 mt-2 font-medium">
+              Face Detection
+            </p>
+          </div>
+          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-xl border-2 border-blue-200">
+            <div className="w-48 h-36 rounded-md bg-gray-100 flex items-center justify-center">
+              <AudioTracking />
+            </div>
+            <p className="text-center text-sm text-gray-600 mt-2 font-medium">
+              Audio Monitoring
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Switch Warning Modal */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md text-center">
+            <div className="text-red-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Exam Paused</h2>
+            <p className="text-gray-600 mb-6">
+              You've switched away from the exam window. Multiple instances of this behavior may result in exam termination.
+            </p>
             <button
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               onClick={() => setShowPopup(false)}
+              className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 w-full transition-transform transform hover:scale-105"
             >
-              Close
+              Return to Exam
             </button>
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 };
